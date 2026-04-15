@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+pydantic
+requests
+gtfs-realtime-bindings
+ipython
+alembic
+python-dotenv
