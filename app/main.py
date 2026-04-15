@@ -38,6 +38,10 @@ def test_trips():
 def test_static(db: Session = Depends(get_db)):
     return services.test_static(db)
 
-@app.get("/test_realtime")
-def test_realtime(db: Session = Depends(get_db)):
-    return services.test_realtime(db)
+@app.get("/test_realtime/{route_id}")
+def test_realtime(route_id: str, db: Session = Depends(get_db)):
+    return services.test_realtime(db, route_id)
+
+@app.get("/test_station_wait/{stop_id}")
+def test_station_wait(stop_id: str, db: Session = Depends(get_db)):
+    return services.get_next_trains_at_station(db, stop_id)
