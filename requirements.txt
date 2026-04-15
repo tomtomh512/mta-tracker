@@ -8,3 +8,4 @@ gtfs-realtime-bindings
 ipython
 alembic
 python-dotenv
+apscheduler

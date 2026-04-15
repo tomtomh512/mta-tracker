@@ -35,6 +35,27 @@ def populate_static_gtfs(db: Session):
     db.commit()
     print("Fetching static GTFS data finished")
 
+def update_static_gtfs(db: Session):
+    print("Updating static GTFS data...")
+    r = requests.get(STATIC_GTFS_URL)
+    r.raise_for_status()
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+
+    # Delete in dependency-safe order (shapes/trips before routes/stops)
+    for model in [StaticShape, StaticTrip, StaticStop, StaticRoute]:
+        deleted = db.query(model).delete()
+        print(f"Deleted {deleted} rows from {model.__tablename__}")
+
+    db.flush()
+
+    populate_routes(db, z)
+    populate_stops(db, z)
+    populate_trips(db, z)
+    populate_shapes(db, z)
+
+    db.commit()
+    print("Static GTFS update finished")
+
 
 def populate_routes(db: Session, z: zipfile.ZipFile):
     rows = read_csv_from_zip(z, "routes.txt")
