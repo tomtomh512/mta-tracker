@@ -9,3 +9,9 @@ def scheduled_static_gtfs_update():
         print("Scheduled GTFS update failed:", e)
     finally:
         db.close()
+
+def scheduled_trip_update():
+    print("Scheduled trips update")
+
+def scheduled_trips_cleanup():
+    print("Scheduled trips cleanup")

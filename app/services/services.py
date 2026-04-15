@@ -1,9 +1,22 @@
 from sqlalchemy.orm import Session
+from google.transit import gtfs_realtime_pb2
+import requests
 
 from app.models import StaticRoute, StaticShape, StaticStop, StaticTrip
 
+def test_trips():
+    url = "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-ace"
+    response = requests.get(url)
 
-def get_test(db: Session):
+    feed = gtfs_realtime_pb2.FeedMessage()
+    feed.ParseFromString(response.content)
+
+    for entity in feed.entity[:5]:
+        if entity.trip_update:
+            print(entity.trip_update)
+
+
+def test_static(db: Session):
 
     # temp function to test static info injection
     route_count = db.query(StaticRoute).count()
