@@ -1,7 +1,7 @@
 from app.db import Base
 from sqlalchemy import Integer, Column, String, Float, Boolean, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
-
+from datetime import datetime
 
 class StaticRoute(Base):
     __tablename__ = 'StaticRoutes'
@@ -53,3 +53,32 @@ class StaticTrip(Base):
     direction_id = Column(Integer, nullable=True)       # 0 = outbound, 1 = inbound
 
     route = relationship("StaticRoute", back_populates="trips")
+
+
+class RealtimeTrip(Base):
+    __tablename__ = 'RealtimeTrips'
+
+    trip_id = Column(String, ForeignKey('StaticTrips.trip_id'), primary_key=True)
+    route_id = Column(String, ForeignKey('StaticRoutes.route_id'), nullable=False)
+    direction_id = Column(Integer, nullable=True)
+    start_time = Column(String, nullable=True)
+    start_date = Column(String, nullable=True)
+    last_updated = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    static_trip = relationship("StaticTrip", backref="realtime_trip")
+    stop_time_updates = relationship("StopTimeUpdate", back_populates="trip",
+                                     cascade="all, delete-orphan")
+
+
+class StopTimeUpdate(Base):
+    __tablename__ = 'StopTimeUpdates'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    trip_id = Column(String, ForeignKey('RealtimeTrips.trip_id'), nullable=False)
+    stop_id = Column(String, ForeignKey('StaticStops.stop_id'), nullable=False)
+    arrival_time = Column(Integer, nullable=True)
+    departure_time = Column(Integer, nullable=True)
+    last_updated = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    trip = relationship("RealtimeTrip", back_populates="stop_time_updates")
+    stop = relationship("StaticStop")
