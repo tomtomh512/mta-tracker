@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.scheduler import scheduled_jobs
-from app.services import static_services, realtime_services, stop_service, trip_service
+from app.services import static_service, realtime_service, stop_service, trip_service, map_service
 from app.db import get_db, create_table, create_database_if_not_exists, SessionLocal
 
 @asynccontextmanager
@@ -14,8 +14,8 @@ async def lifespan(_: FastAPI):
 
     db = SessionLocal()
     try:
-        static_services.populate_static_gtfs(db)
-        # realtime_services.populate_trips(db)
+        static_service.populate_static_gtfs(db)
+        # realtime_service.populate_trips(db)
     finally:
         db.close()
 
@@ -37,3 +37,7 @@ def get_trips(route_id: str, db: Session = Depends(get_db)):
 @app.get("/stop/{stop_id}")
 def get_wait_times(stop_id: str, db: Session = Depends(get_db)):
     return stop_service.get_wait_times(db, stop_id)
+
+@app.get("/map/{route_id}")
+def get_wait_times(route_id: str, db: Session = Depends(get_db)):
+    return map_service.get_route_map_data(db, route_id)

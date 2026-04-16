@@ -1,10 +1,10 @@
 from app.db import SessionLocal
-from app.services import static_services, realtime_services
+from app.services import static_service, realtime_service
 
 def scheduled_static_gtfs_update():
     db = SessionLocal()
     try:
-        static_services.update_static_gtfs(db)
+        static_service.update_static_gtfs(db)
     except Exception as e:
         print("Scheduled GTFS update failed:")
     finally:
@@ -13,7 +13,7 @@ def scheduled_static_gtfs_update():
 def scheduled_trip_update():
     db = SessionLocal()
     try:
-        realtime_services.populate_trips(db)
+        realtime_service.populate_trips(db)
     except Exception as e:
         print("Scheduled realtime update failed:")
     finally:
@@ -22,7 +22,7 @@ def scheduled_trip_update():
 def scheduled_trips_cleanup():
     db = SessionLocal()
     try:
-        realtime_services.cleanup_trips(db)
+        realtime_service.cleanup_trips(db)
     except Exception as e:
         print("Scheduled realtime update failed:")
     finally:

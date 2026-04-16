@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 import requests, zipfile, io
 
 from app.models import StaticRoute, StaticShape, StaticStop, StaticTrip, StaticTransfer, RealtimeTrip, StopTimeUpdate
-from app.services import realtime_services
+from app.services import realtime_service
 from app.utils import static_utils
 
 STATIC_GTFS_URL = "https://rrgtfsfeeds.s3.amazonaws.com/gtfs_subway.zip"
