@@ -41,7 +41,9 @@ def test_realtime(db: Session, route_id: str):
         grouped[stu.trip_id].append(stu)
 
     for trip_id, stops in grouped.items():
-        print(f"\nTrip: {trip_id}")
+        terminal_stop = utils.get_last_stop_for_trip(db, trip_id)
+        terminal_name = terminal_stop.stop_name if terminal_stop else "Unknown"
+        print(f"\nTrip: {trip_id}, to {terminal_name}")
 
         for stu in stops:
             print(
@@ -85,8 +87,13 @@ def get_next_trains_at_station(db: Session, stop_id: str):
     for u in upcoming[:5]:
         is_transfer = u.stop_id not in stop_ids
         label = f" [transfer via {u.stop_id}]" if is_transfer else ""
+
+        terminal_stop = utils.get_last_stop_for_trip(db, u.trip_id)
+        terminal_name = terminal_stop.stop_name if terminal_stop else "Unknown"
+
         print(
             f"Route: {u.trip.route_id} | "
+            f"To: {terminal_name} | "
             f"Arrival: {utils.format_time(u.arrival_time)}"
             f"{label}"
         )

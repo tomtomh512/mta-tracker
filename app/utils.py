@@ -4,7 +4,8 @@ from zoneinfo import ZoneInfo
 
 NY_TZ = ZoneInfo("America/New_York")
 
-from app.models import StaticStop, StaticTransfer
+from app.models import StaticStop, StaticTransfer, StopTimeUpdate
+
 
 def format_time(ts):
     if ts is None:
@@ -63,3 +64,22 @@ def get_transfers(db: Session, stop_id: str, includeChildren: bool):
             result.extend(get_children_stops(db, stop_id))
 
     return result
+
+# Returns the terminal (last known) stop for a RealtimeTrip based on max arrival_time in StopTimeUpdates
+def get_last_stop_for_trip(db: Session, trip_id: str):
+    updates = (
+        db.query(StopTimeUpdate)
+        .filter(StopTimeUpdate.trip_id == trip_id)
+        .all()
+    )
+
+    if not updates:
+        return None
+
+    terminal_update = max(
+        (u for u in updates if u.arrival_time is not None),
+        key=lambda x: x.arrival_time,
+        default=None
+    )
+
+    return terminal_update.stop if terminal_update else None
