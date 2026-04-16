@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.scheduler import scheduled_jobs
-from app.services import services, static_services, realtime_services
+from app.services import static_services, realtime_services, stop_service, trip_service
 from app.db import get_db, create_table, create_database_if_not_exists, SessionLocal
 
 @asynccontextmanager
@@ -30,14 +30,10 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-@app.get("/test_static")
-def test_static(db: Session = Depends(get_db)):
-    return services.test_static(db)
+@app.get("/trip/{route_id}")
+def get_trips(route_id: str, db: Session = Depends(get_db)):
+    return trip_service.get_active_trips_by_route(db, route_id)
 
-@app.get("/test_realtime/{route_id}")
-def test_realtime(route_id: str, db: Session = Depends(get_db)):
-    return services.test_realtime(db, route_id)
-
-@app.get("/test_station_wait/{stop_id}")
-def test_station_wait(stop_id: str, db: Session = Depends(get_db)):
-    return services.get_next_trains_at_station(db, stop_id)
+@app.get("/stop/{stop_id}")
+def get_wait_times(stop_id: str, db: Session = Depends(get_db)):
+    return stop_service.get_wait_times(db, stop_id)

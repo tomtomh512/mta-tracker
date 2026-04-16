@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
+from typing import List
 
 NY_TZ = ZoneInfo("America/New_York")
 
@@ -15,7 +16,7 @@ def format_time(ts):
 
 # Given a stop id, return a staticstop of the stop's parent
 # If the stop is a parent, return its own staticstop
-def get_parent_stop(db: Session, stop_id: str):
+def get_parent_stop(db: Session, stop_id: str) -> StaticStop:
     stop = (
         db.query(StaticStop)
         .filter(StaticStop.stop_id == stop_id)
@@ -32,7 +33,7 @@ def get_parent_stop(db: Session, stop_id: str):
     return stop
 
 # Given a stop id, return a list of staticstops of the stop's children
-def get_children_stops(db: Session, stop_id: str):
+def get_children_stops(db: Session, stop_id: str) -> List[StaticStop]:
     return (
         db.query(StaticStop)
         .filter(StaticStop.parent_station == stop_id)
@@ -40,7 +41,7 @@ def get_children_stops(db: Session, stop_id: str):
     )
 
 # Given a stop id, return a list of staticstops of the stop's transfers
-def get_transfers(db: Session, stop_id: str, includeChildren: bool):
+def get_transfers(db: Session, stop_id: str, includeChildren: bool) -> List[StaticStop]:
     transfers = (
         db.query(StaticTransfer)
         .filter(StaticTransfer.from_stop_id == stop_id)
@@ -66,7 +67,7 @@ def get_transfers(db: Session, stop_id: str, includeChildren: bool):
     return result
 
 # Returns the terminal (last known) stop for a RealtimeTrip based on max arrival_time in StopTimeUpdates
-def get_last_stop_for_trip(db: Session, trip_id: str):
+def get_last_stop_for_trip(db: Session, trip_id: str) -> List[StaticStop]:
     updates = (
         db.query(StopTimeUpdate)
         .filter(StopTimeUpdate.trip_id == trip_id)
