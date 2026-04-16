@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 
 NY_TZ = ZoneInfo("America/New_York")
 
-from app.models import StaticRoute, StaticShape, StaticStop, StaticTrip, StopTimeUpdate, RealtimeTrip
+from app.models import StaticRoute, StaticShape, StaticStop, StaticTrip, StaticTransfer, StopTimeUpdate, RealtimeTrip
 
 def format_time(ts):
     if ts is None:
@@ -32,11 +32,13 @@ def test_static(db: Session):
     # temp function to test static info injection
     route_count = db.query(StaticRoute).count()
     stop_count = db.query(StaticStop).count()
+    transfer_count = db.query(StaticTransfer).count()
     trip_count = db.query(StaticTrip).count()
     shape_count = db.query(StaticShape).count()
 
     print(f"Routes:         {route_count}")
     print(f"Stops:          {stop_count}")
+    print(f"Transfer:       {transfer_count}")
     print(f"Trips:          {trip_count}")
     print(f"Shape points:   {shape_count}")
 
@@ -72,28 +74,56 @@ def test_realtime(db: Session, route_id: str):
             )
 
 def get_next_trains_at_station(db: Session, stop_id: str):
+
+    # find stops where parent station is the stop id
+    children = (
+        db.query(StaticStop.stop_id)
+        .filter(StaticStop.parent_station == stop_id)
+        .all()
+    )
+    child_ids = [row.stop_id for row in children]
+    stop_ids = list(set([stop_id] + child_ids))
+
+    # find transfer stops, excluding self-transfers
+    transfer_stop_ids = (
+        db.query(StaticTransfer.to_stop_id)
+        .filter(StaticTransfer.from_stop_id.in_(stop_ids))
+        .filter(StaticTransfer.from_stop_id != StaticTransfer.to_stop_id) #excluding self-transfers
+        .all()
+    )
+    transfer_stop_ids = [row.to_stop_id for row in transfer_stop_ids]
+
+    # expand transfer parent stations to their directional children
+    if transfer_stop_ids:
+        transfer_children = (
+            db.query(StaticStop.stop_id)
+            .filter(StaticStop.parent_station.in_(transfer_stop_ids))
+            .all()
+        )
+        transfer_child_ids = [row.stop_id for row in transfer_children]
+        transfer_stop_ids = list(set(transfer_stop_ids + transfer_child_ids))
+
+    all_stop_ids = list(set(stop_ids + transfer_stop_ids))
+
     updates = (
         db.query(StopTimeUpdate)
         .join(RealtimeTrip)
-        .filter(StopTimeUpdate.stop_id == stop_id)
+        .filter(StopTimeUpdate.stop_id.in_(all_stop_ids))
         .all()
     )
 
     now = datetime.now(timezone.utc).timestamp()
 
-    # keep only future arrivals
-    upcoming = [
-        u for u in updates
-        if u.arrival_time and u.arrival_time >= now
-    ]
-
-    # sort by arrival time
+    upcoming = [u for u in updates if u.arrival_time and u.arrival_time >= now]
     upcoming.sort(key=lambda x: x.arrival_time)
 
     print(f"\nNext trains at {stop_id}\n")
 
     for u in upcoming[:5]:
+        is_transfer = u.stop_id not in stop_ids
+        label = f" [transfer via {u.stop_id}]" if is_transfer else ""
         print(
             f"Route: {u.trip.route_id} | "
             f"Arrival: {format_time(u.arrival_time)}"
+            f"{label}"
         )
