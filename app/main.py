@@ -1,11 +1,11 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from sqlalchemy.orm import Session
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.scheduler import scheduled_jobs
-from app.services import static_service, realtime_service, stop_service, trip_service, map_service
-from app.db import get_db, create_table, create_database_if_not_exists, SessionLocal
+from app.services import static_service, realtime_service
+from app.db import create_table, create_database_if_not_exists, SessionLocal
+from app.api import stops, trips, map
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -30,25 +30,6 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-@app.get("/trip/{route_id}")
-def get_trips(route_id: str, db: Session = Depends(get_db)):
-    return trip_service.get_active_trips_by_route(db, route_id)
-
-@app.get("/stop/{stop_id}")
-def get_wait_times(
-        stop_id: str,
-        route_id: str | None = None,
-        db: Session = Depends(get_db)
-):
-    if route_id:
-        return stop_service.get_wait_times(db, stop_id, 5, route_id)
-
-    return stop_service.get_wait_times(db, stop_id, 5)
-
-@app.get("/stop/{stop_id}/routes")
-def get_routes_for_stop(stop_id: str, db: Session = Depends(get_db)):
-    return stop_service.get_routes_by_stop(db, stop_id)
-
-@app.get("/map/{route_id}")
-def get_route_map(route_id: str, db: Session = Depends(get_db)):
-    return map_service.get_route_map_data(db, route_id)
+app.include_router(stops.router)
+app.include_router(trips.router)
+app.include_router(map.router)

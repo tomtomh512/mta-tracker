@@ -23,6 +23,7 @@ def populate_trips(db: Session):
     valid_stop_ids = {row.stop_id for row in db.query(StaticStop.stop_id).all()}
 
     now = datetime.now(timezone.utc)
+    seen_trip_ids = set()
 
     for feed_key, url in FEEDS.items():
         feed = realtime_utils.fetch_feed(url)
@@ -50,6 +51,11 @@ def populate_trips(db: Session):
                 print(f"Skipping unknown trip_id: {trip_id_from_URL}")
                 continue
 
+            # skip if already processed by an earlier feed
+            if trip_id in seen_trip_ids:
+                continue
+            seen_trip_ids.add(trip_id)
+
             realtime_trip = db.get(RealtimeTrip, trip_id)
             if realtime_trip is None:
                 realtime_trip = RealtimeTrip(
@@ -67,7 +73,6 @@ def populate_trips(db: Session):
                 realtime_trip.start_time = trip.start_time or None
                 realtime_trip.start_date = trip.start_date or None
                 realtime_trip.last_updated = now
-
 
             existing_updates = {
                 stu.stop_id: stu

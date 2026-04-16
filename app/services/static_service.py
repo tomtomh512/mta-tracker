@@ -141,7 +141,6 @@ def populate_stop_times(db: Session, z: zipfile.ZipFile):
     rows = static_utils.read_csv_from_zip(z, "stop_times.txt")
 
     total = len(rows)
-    print(f"Inserting {total} stop times...")
 
     for i in range(0, total, STOP_TIMES_CHUNK_SIZE):
         chunk = rows[i:i + STOP_TIMES_CHUNK_SIZE]

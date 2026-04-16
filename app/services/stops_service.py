@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
-from app.models import StopTimeUpdate, RealtimeTrip, StaticRoute, StaticTrip, StaticStopTime
+from app.models import StopTimeUpdate, RealtimeTrip, StaticRoute, StaticTrip, StaticStopTime, StaticStop
 from app.utils import utils
 
 
@@ -65,3 +65,16 @@ def get_routes_by_stop(db: Session, stop_id: str):
     )
 
     return routes
+
+def get_parent_stops(db: Session):
+    return (
+        db.query(StaticStop)
+        .filter(StaticStop.location_type == 1)
+        .all()
+    )
+
+def get_stops_by_route(db: Session, route_id: str):
+    print("test")
+
+def get_nearby_stops(db: Session, lat: float, lng: float, radius: int):
+    print("test")
