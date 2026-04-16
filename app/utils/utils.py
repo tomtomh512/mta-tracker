@@ -84,3 +84,23 @@ def get_last_stop_for_trip(db: Session, trip_id: str) -> List[StaticStop]:
     )
 
     return terminal_update.stop if terminal_update else None
+
+def get_all_stop_ids(db: Session, stop_id: str):
+    stop = get_parent_stop(db, stop_id)
+    parent_stop_id = stop.stop_id
+
+    children = get_children_stops(db, parent_stop_id)
+    child_ids = [s.stop_id for s in children]
+
+    stop_ids = list(set([parent_stop_id] + child_ids))
+
+    transfer_stop_ids = []
+
+    for current_stop_id in stop_ids:
+        current_transfers = get_transfers(db, current_stop_id, True)
+        current_transfer_stop_ids = [s.stop_id for s in current_transfers]
+        transfer_stop_ids.extend(current_transfer_stop_ids)
+
+    all_stop_ids = list(set(stop_ids + transfer_stop_ids))
+
+    return parent_stop_id, stop_ids, all_stop_ids

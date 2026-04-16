@@ -1,20 +1,21 @@
 from app.db import Base
 from sqlalchemy import Integer, Column, String, Float, Boolean, ForeignKey, DateTime
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from datetime import datetime
+
 
 class StaticRoute(Base):
     __tablename__ = 'StaticRoutes'
 
     route_id = Column(String, primary_key=True)
     agency_id = Column(String, nullable=False)
-    route_short_name = Column(String, nullable=False)   # "A", "1", "G", etc.
-    route_long_name = Column(String, nullable=False)    # "8 Avenue Express"
+    route_short_name = Column(String, nullable=False)  # "A", "1", "G", etc.
+    route_long_name = Column(String, nullable=False)  # "8 Avenue Express"
     route_desc = Column(String, nullable=True)
-    route_type = Column(Integer, nullable=False)        # 1 = subway, 2 = rail
+    route_type = Column(Integer, nullable=False)  # 1 = subway, 2 = rail
     route_url = Column(String, nullable=True)
-    route_color = Column(String, nullable=True)         # hex, e.g. "0062CF"
-    route_text_color = Column(String, nullable=True)    # hex, e.g. "FFFFFF"
+    route_color = Column(String, nullable=True)  # hex, e.g. "0062CF"
+    route_text_color = Column(String, nullable=True)  # hex, e.g. "FFFFFF"
     route_sort_order = Column(Integer, nullable=True)
 
     trips = relationship("StaticTrip", back_populates="route")
@@ -24,11 +25,13 @@ class StaticStop(Base):
     __tablename__ = 'StaticStops'
 
     stop_id = Column(String, primary_key=True)
-    stop_name = Column(String, nullable=False)          # "Times Sq-42 St"
+    stop_name = Column(String, nullable=False)  # "Times Sq-42 St"
     stop_lat = Column(Float, nullable=False)
     stop_lon = Column(Float, nullable=False)
-    location_type = Column(Integer, nullable=True)      # 0 = stop, 1 = station
+    location_type = Column(Integer, nullable=True)  # 0 = stop, 1 = station
     parent_station = Column(String, ForeignKey('StaticStops.stop_id'), nullable=True)
+
+    stop_times = relationship("StaticStopTime", back_populates="stop")
 
 
 class StaticShape(Base):
@@ -47,12 +50,32 @@ class StaticTrip(Base):
 
     trip_id = Column(String, primary_key=True)
     route_id = Column(String, ForeignKey('StaticRoutes.route_id'), nullable=False)
-    service_id = Column(String, nullable=False)         # "Weekday", "Saturday", "Sunday"
+    service_id = Column(String, nullable=False)  # "Weekday", "Saturday", "Sunday"
     shape_id = Column(String, nullable=False, index=True)  # links to StaticShapes
-    trip_headsign = Column(String, nullable=True)       # destination display text
-    direction_id = Column(Integer, nullable=True)       # 0 = outbound, 1 = inbound
+    trip_headsign = Column(String, nullable=True)  # destination display text
+    direction_id = Column(Integer, nullable=True)  # 0 = outbound, 1 = inbound
 
     route = relationship("StaticRoute", back_populates="trips")
+
+    stop_times = relationship(
+        "StaticStopTime",
+        back_populates="trip",
+        order_by="StaticStopTime.stop_sequence",
+        cascade="all, delete-orphan"
+    )
+
+
+class StaticStopTime(Base):
+    __tablename__ = "StaticStopTimes"
+
+    trip_id = Column(String, ForeignKey("StaticTrips.trip_id"), primary_key=True)
+    stop_id = Column(String, ForeignKey("StaticStops.stop_id"), primary_key=True)
+    arrival_time = Column(String, nullable=True)
+    departure_time = Column(String, nullable=True)
+    stop_sequence = Column(Integer, nullable=False)
+
+    trip = relationship("StaticTrip", back_populates="stop_times")
+    stop = relationship("StaticStop", back_populates="stop_times")
 
 
 class StaticTransfer(Base):
@@ -79,8 +102,11 @@ class RealtimeTrip(Base):
     last_updated = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
 
     static_trip = relationship("StaticTrip", backref="realtime_trip")
-    stop_time_updates = relationship("StopTimeUpdate", back_populates="trip",
-                                     cascade="all, delete-orphan")
+    stop_time_updates = relationship(
+        "StopTimeUpdate",
+        back_populates="trip",
+        cascade="all, delete-orphan"
+    )
 
 
 class StopTimeUpdate(Base):

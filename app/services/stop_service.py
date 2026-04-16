@@ -1,29 +1,8 @@
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
-from app.models import StopTimeUpdate, RealtimeTrip
+from app.models import StopTimeUpdate, RealtimeTrip, StaticRoute, StaticTrip, StaticStopTime
 from app.utils import utils
-
-
-def get_all_stop_ids(db: Session, stop_id: str):
-    stop = utils.get_parent_stop(db, stop_id)
-    parent_stop_id = stop.stop_id
-
-    children = utils.get_children_stops(db, parent_stop_id)
-    child_ids = [s.stop_id for s in children]
-
-    stop_ids = list(set([parent_stop_id] + child_ids))
-
-    transfer_stop_ids = []
-
-    for current_stop_id in stop_ids:
-        current_transfers = utils.get_transfers(db, current_stop_id, True)
-        current_transfer_stop_ids = [s.stop_id for s in current_transfers]
-        transfer_stop_ids.extend(current_transfer_stop_ids)
-
-    all_stop_ids = list(set(stop_ids + transfer_stop_ids))
-
-    return parent_stop_id, stop_ids, all_stop_ids
 
 
 def get_wait_times(
@@ -32,7 +11,7 @@ def get_wait_times(
     num: int = 5,
     route_id: str | None = None,
 ):
-    parent_stop_id, stop_ids, all_stop_ids = get_all_stop_ids(db, stop_id)
+    parent_stop_id, stop_ids, all_stop_ids = utils.get_all_stop_ids(db, stop_id)
 
     query = (
         db.query(StopTimeUpdate)
@@ -72,3 +51,17 @@ def get_wait_times(
         "route_id": route_id,
         "results": results,
     }
+
+def get_routes_by_stop(db: Session, stop_id: str):
+    parent_stop_id, stop_ids, all_stop_ids = utils.get_all_stop_ids(db, stop_id)
+
+    routes = (
+        db.query(StaticRoute)
+        .join(StaticTrip, StaticTrip.route_id == StaticRoute.route_id)
+        .join(StaticStopTime, StaticStopTime.trip_id == StaticTrip.trip_id)
+        .filter(StaticStopTime.stop_id.in_(all_stop_ids))
+        .distinct(StaticRoute.route_id)
+        .all()
+    )
+
+    return routes
