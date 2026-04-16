@@ -20,4 +20,10 @@ def scheduled_trip_update():
         db.close()
 
 def scheduled_trips_cleanup():
-    print("Scheduled trips cleanup")
+    db = SessionLocal()
+    try:
+        realtime_services.cleanup_trips(db)
+    except Exception as e:
+        print("Scheduled realtime update failed:")
+    finally:
+        db.close()

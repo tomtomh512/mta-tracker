@@ -55,15 +55,28 @@ class StaticTrip(Base):
     route = relationship("StaticRoute", back_populates="trips")
 
 
+class StaticTransfer(Base):
+    __tablename__ = 'StaticTransfers'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    from_stop_id = Column(String, ForeignKey('StaticStops.stop_id'), nullable=False, index=True)
+    to_stop_id = Column(String, ForeignKey('StaticStops.stop_id'), nullable=False, index=True)
+    transfer_type = Column(Integer, nullable=False)
+    min_transfer_time = Column(Integer, nullable=True)
+
+    from_stop = relationship("StaticStop", foreign_keys=[from_stop_id])
+    to_stop = relationship("StaticStop", foreign_keys=[to_stop_id])
+
+
 class RealtimeTrip(Base):
     __tablename__ = 'RealtimeTrips'
 
     trip_id = Column(String, ForeignKey('StaticTrips.trip_id'), primary_key=True)
-    route_id = Column(String, ForeignKey('StaticRoutes.route_id'), nullable=False)
+    route_id = Column(String, ForeignKey('StaticRoutes.route_id'), nullable=False, index=True)
     direction_id = Column(Integer, nullable=True)
     start_time = Column(String, nullable=True)
     start_date = Column(String, nullable=True)
-    last_updated = Column(DateTime, nullable=False, default=datetime.utcnow)
+    last_updated = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
 
     static_trip = relationship("StaticTrip", backref="realtime_trip")
     stop_time_updates = relationship("StopTimeUpdate", back_populates="trip",
@@ -74,8 +87,8 @@ class StopTimeUpdate(Base):
     __tablename__ = 'StopTimeUpdates'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    trip_id = Column(String, ForeignKey('RealtimeTrips.trip_id'), nullable=False)
-    stop_id = Column(String, ForeignKey('StaticStops.stop_id'), nullable=False)
+    trip_id = Column(String, ForeignKey('RealtimeTrips.trip_id'), nullable=False, index=True)
+    stop_id = Column(String, ForeignKey('StaticStops.stop_id'), nullable=False, index=True)
     arrival_time = Column(Integer, nullable=True)
     departure_time = Column(Integer, nullable=True)
     last_updated = Column(DateTime, nullable=False, default=datetime.utcnow)

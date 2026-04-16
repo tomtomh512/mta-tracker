@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 import requests, zipfile, io, csv
-from app.models import StaticRoute, StaticShape, StaticStop, StaticTrip
+from app.models import StaticRoute, StaticShape, StaticStop, StaticTrip, StaticTransfer
 
 STATIC_GTFS_URL = "https://rrgtfsfeeds.s3.amazonaws.com/gtfs_subway.zip"
 CHUNK_SIZE = 5000
@@ -16,6 +16,7 @@ def populate_static_gtfs(db: Session):
         "stops": db.query(StaticStop).count() > 0,
         "trips": db.query(StaticTrip).count() > 0,
         "shapes": db.query(StaticShape).count() > 0,
+        "transfers": db.query(StaticTransfer).count() > 0,
     }
 
     if all(populated.values()):
@@ -29,6 +30,7 @@ def populate_static_gtfs(db: Session):
 
     if not populated["routes"]: populate_routes(db, z)
     if not populated["stops"]:  populate_stops(db, z)
+    if not populated["transfers"]: populate_transfers(db, z)
     if not populated["trips"]:  populate_trips(db, z)
     if not populated["shapes"]: populate_shapes(db, z)
 
@@ -42,7 +44,7 @@ def update_static_gtfs(db: Session):
     z = zipfile.ZipFile(io.BytesIO(r.content))
 
     # Delete in dependency-safe order (shapes/trips before routes/stops)
-    for model in [StaticShape, StaticTrip, StaticStop, StaticRoute]:
+    for model in [StaticShape, StaticTrip, StaticTransfer, StaticStop, StaticRoute]:
         deleted = db.query(model).delete()
         print(f"Deleted {deleted} rows from {model.__tablename__}")
 
@@ -50,6 +52,7 @@ def update_static_gtfs(db: Session):
 
     populate_routes(db, z)
     populate_stops(db, z)
+    populate_transfers(db, z)
     populate_trips(db, z)
     populate_shapes(db, z)
 
@@ -126,3 +129,23 @@ def populate_shapes(db: Session, z: zipfile.ZipFile):
         ])
         db.flush()
     print(f"Inserted {len(rows)} shape points")
+
+
+def populate_transfers(db: Session, z: zipfile.ZipFile):
+    try:
+        rows = read_csv_from_zip(z, "transfers.txt")
+    except KeyError:
+        print("No transfers.txt found, skipping...")
+        return
+
+    db.bulk_save_objects([
+        StaticTransfer(
+            from_stop_id=r["from_stop_id"],
+            to_stop_id=r["to_stop_id"],
+            transfer_type=int(r["transfer_type"]) if r.get("transfer_type") else 0,
+            min_transfer_time=int(r["min_transfer_time"]) if r.get("min_transfer_time") else None,
+        )
+        for r in rows
+    ])
+
+    print(f"Inserted {len(rows)} transfers")

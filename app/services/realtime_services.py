@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from google.transit import gtfs_realtime_pb2
 from app.models import RealtimeTrip, StopTimeUpdate, StaticTrip, StaticStop, StaticRoute
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import requests
 
 FEEDS = {
@@ -118,4 +118,11 @@ def populate_trips(db: Session):
     print("Trips populated")
 
 def cleanup_trips(db: Session):
-    print("Cleanup trips")
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=3)
+
+    stale = db.query(RealtimeTrip).filter(RealtimeTrip.last_updated < cutoff).all()
+    for trip in stale:
+        db.delete(trip)
+
+    db.commit()
+    print(f"Cleaned up {len(stale)} stale trips")
