@@ -1,14 +1,12 @@
 from sqlalchemy.orm import Session
-import requests, zipfile, io, csv
-from app.models import StaticRoute, StaticShape, StaticStop, StaticTrip, StaticTransfer
+import requests, zipfile, io
+
+from app.models import StaticRoute, StaticShape, StaticStop, StaticTrip, StaticTransfer, RealtimeTrip, StopTimeUpdate
+from app.services import realtime_services
+from app.utils import static_utils
 
 STATIC_GTFS_URL = "https://rrgtfsfeeds.s3.amazonaws.com/gtfs_subway.zip"
 CHUNK_SIZE = 5000
-
-def read_csv_from_zip(z: zipfile.ZipFile, filename: str) -> list[dict]:
-    with z.open(filename) as f:
-        reader = csv.DictReader(io.TextIOWrapper(f, encoding="utf-8"))
-        return list(reader)
 
 def populate_static_gtfs(db: Session):
     populated = {
@@ -44,7 +42,15 @@ def update_static_gtfs(db: Session):
     z = zipfile.ZipFile(io.BytesIO(r.content))
 
     # Delete in dependency-safe order (shapes/trips before routes/stops)
-    for model in [StaticShape, StaticTrip, StaticTransfer, StaticStop, StaticRoute]:
+    for model in [
+        StopTimeUpdate,
+        RealtimeTrip,
+        StaticShape,
+        StaticTrip,
+        StaticTransfer,
+        StaticStop,
+        StaticRoute,
+    ]:
         deleted = db.query(model).delete()
         print(f"Deleted {deleted} rows from {model.__tablename__}")
 
@@ -56,12 +62,14 @@ def update_static_gtfs(db: Session):
     populate_trips(db, z)
     populate_shapes(db, z)
 
+    realtime_services.populate_trips(db)
+
     db.commit()
     print("Static GTFS update finished")
 
 
 def populate_routes(db: Session, z: zipfile.ZipFile):
-    rows = read_csv_from_zip(z, "routes.txt")
+    rows = static_utils.read_csv_from_zip(z, "routes.txt")
     db.bulk_save_objects([
         StaticRoute(
             route_id=r["route_id"],
@@ -81,7 +89,7 @@ def populate_routes(db: Session, z: zipfile.ZipFile):
 
 
 def populate_stops(db: Session, z: zipfile.ZipFile):
-    rows = read_csv_from_zip(z, "stops.txt")
+    rows = static_utils.read_csv_from_zip(z, "stops.txt")
     db.bulk_save_objects([
         StaticStop(
             stop_id=r["stop_id"],
@@ -97,7 +105,7 @@ def populate_stops(db: Session, z: zipfile.ZipFile):
 
 
 def populate_trips(db: Session, z: zipfile.ZipFile):
-    rows = read_csv_from_zip(z, "trips.txt")
+    rows = static_utils.read_csv_from_zip(z, "trips.txt")
     db.bulk_save_objects([
         StaticTrip(
             trip_id=r["trip_id"],
@@ -113,7 +121,7 @@ def populate_trips(db: Session, z: zipfile.ZipFile):
 
 
 def populate_shapes(db: Session, z: zipfile.ZipFile):
-    rows = read_csv_from_zip(z, "shapes.txt")
+    rows = static_utils.read_csv_from_zip(z, "shapes.txt")
     # shapes.txt can be very large — insert in chunks to avoid memory issues
     for i in range(0, len(rows), CHUNK_SIZE):
         chunk = rows[i:i + CHUNK_SIZE]
@@ -133,7 +141,7 @@ def populate_shapes(db: Session, z: zipfile.ZipFile):
 
 def populate_transfers(db: Session, z: zipfile.ZipFile):
     try:
-        rows = read_csv_from_zip(z, "transfers.txt")
+        rows = static_utils.read_csv_from_zip(z, "transfers.txt")
     except KeyError:
         print("No transfers.txt found, skipping...")
         return

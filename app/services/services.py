@@ -3,7 +3,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 
 from app.models import StaticRoute, StaticShape, StaticStop, StaticTrip, StaticTransfer, StopTimeUpdate, RealtimeTrip
-from app import utils
+from app.utils import utils
 
 def test_static(db: Session):
     # temp function to test static info injection
