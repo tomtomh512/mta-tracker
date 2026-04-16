@@ -22,14 +22,18 @@ def fetch_feed(url: str) -> gtfs_realtime_pb2.FeedMessage | None:
         feed = gtfs_realtime_pb2.FeedMessage()
         feed.ParseFromString(response.content)
         return feed
+
     except Exception as e:
         print(f"Failed to fetch feed {url}: {e}")
         return None
 
-def match_static_trip(trip_id_from_url: str, valid_trip_ids: set[str]) -> str | None:
+# for some reason trip id from url doesnt match static trip ids
+# must check if trip id from url is contained in static trip id
+def match_static_trip(trip_id_from_url: str, valid_trip_ids: set[str]):
     for valid_id in valid_trip_ids:
         if trip_id_from_url in valid_id:
             return valid_id
+
     return None
 
 def populate_trips(db: Session):
@@ -38,6 +42,7 @@ def populate_trips(db: Session):
     valid_trip_ids = {row.trip_id for row in db.query(StaticTrip.trip_id).all()}
     valid_route_ids = {row.route_id for row in db.query(StaticRoute.route_id).all()}
     valid_stop_ids = {row.stop_id for row in db.query(StaticStop.stop_id).all()}
+
     now = datetime.now(timezone.utc)
 
     for feed_key, url in FEEDS.items():

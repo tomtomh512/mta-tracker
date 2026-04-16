@@ -1,34 +1,11 @@
 from sqlalchemy.orm import Session
-from google.transit import gtfs_realtime_pb2
-import requests
 from collections import defaultdict
 from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
-
-NY_TZ = ZoneInfo("America/New_York")
 
 from app.models import StaticRoute, StaticShape, StaticStop, StaticTrip, StaticTransfer, StopTimeUpdate, RealtimeTrip
-
-def format_time(ts):
-    if ts is None:
-        return "—"
-
-    return datetime.fromtimestamp(ts, tz=NY_TZ).strftime("%Y-%m-%d %I:%M:%S %p")
-
-def test_trips():
-    url = "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-ace"
-    response = requests.get(url)
-
-    feed = gtfs_realtime_pb2.FeedMessage()
-    feed.ParseFromString(response.content)
-
-    for entity in feed.entity[:5]:
-        if entity.trip_update:
-            print(entity.trip_update)
-
+from app import utils
 
 def test_static(db: Session):
-
     # temp function to test static info injection
     route_count = db.query(StaticRoute).count()
     stop_count = db.query(StaticStop).count()
@@ -69,67 +46,15 @@ def test_realtime(db: Session, route_id: str):
         for stu in stops:
             print(
                 f"  Stop: ({stu.stop_id}) {stu.stop.stop_name}, "
-                f"Arrival: {format_time(stu.arrival_time)}, "
-                f"Departure: {format_time(stu.departure_time)}"
+                f"Arrival: {utils.format_time(stu.arrival_time)}, "
+                f"Departure: {utils.format_time(stu.departure_time)}"
             )
 
-# Given a stop id, return a staticstop of the stop's parent
-# If the stop is a parent, return its own staticstop
-def get_parent_stop(db: Session, stop_id: str):
-    stop = (
-        db.query(StaticStop)
-        .filter(StaticStop.stop_id == stop_id)
-        .first()
-    )
-
-    if stop and stop.parent_station:
-        return (
-            db.query(StaticStop)
-            .filter(StaticStop.stop_id == stop.parent_station)
-            .first()
-        )
-
-    return stop
-
-# Given a stop id, return a list of staticstops of the stop's children
-def get_children_stops(db: Session, stop_id: str):
-    return (
-        db.query(StaticStop)
-        .filter(StaticStop.parent_station == stop_id)
-        .all()
-    )
-
-# Given a stop id, return a list of staticstops of the stop's transfers
-def get_transfers(db: Session, stop_id: str, includeChildren: bool):
-    transfers = (
-        db.query(StaticTransfer)
-        .filter(StaticTransfer.from_stop_id == stop_id)
-        .filter(StaticTransfer.from_stop_id != StaticTransfer.to_stop_id)
-        .all()
-    )
-
-    transfer_stop_ids = {t.to_stop_id for t in transfers}
-
-    result = []
-
-    transfer_stops = (
-        db.query(StaticStop)
-        .filter(StaticStop.stop_id.in_(transfer_stop_ids))
-        .all()
-    )
-    result.extend(transfer_stops)
-
-    if includeChildren:
-        for stop_id in transfer_stop_ids:
-            result.extend(get_children_stops(db, stop_id))
-
-    return result
-
 def get_next_trains_at_station(db: Session, stop_id: str):
-    stop = get_parent_stop(db, stop_id)
+    stop = utils.get_parent_stop(db, stop_id)
     stop_id = stop.stop_id
 
-    children = get_children_stops(db, stop_id)
+    children = utils.get_children_stops(db, stop_id)
     child_ids = [s.stop_id for s in children]
 
     stop_ids = list(set([stop_id] + child_ids))
@@ -137,7 +62,7 @@ def get_next_trains_at_station(db: Session, stop_id: str):
     transfer_stop_ids = []
 
     for current_stop_id in stop_ids:
-        current_transfers = get_transfers(db, current_stop_id, True)
+        current_transfers = utils.get_transfers(db, current_stop_id, True)
         current_transfer_stop_ids = [s.stop_id for s in current_transfers]
         transfer_stop_ids.extend(current_transfer_stop_ids)
 
@@ -162,6 +87,6 @@ def get_next_trains_at_station(db: Session, stop_id: str):
         label = f" [transfer via {u.stop_id}]" if is_transfer else ""
         print(
             f"Route: {u.trip.route_id} | "
-            f"Arrival: {format_time(u.arrival_time)}"
+            f"Arrival: {utils.format_time(u.arrival_time)}"
             f"{label}"
         )

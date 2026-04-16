@@ -15,7 +15,7 @@ async def lifespan(_: FastAPI):
     db = SessionLocal()
     try:
         static_services.populate_static_gtfs(db)
-        # realtime_services.populate_trips(db)
+        realtime_services.populate_trips(db)
     finally:
         db.close()
 
@@ -29,10 +29,6 @@ async def lifespan(_: FastAPI):
     scheduler.shutdown()
 
 app = FastAPI(lifespan=lifespan)
-
-@app.get("/test_trips")
-def test_trips():
-    return services.test_trips()
 
 @app.get("/test_static")
 def test_static(db: Session = Depends(get_db)):
