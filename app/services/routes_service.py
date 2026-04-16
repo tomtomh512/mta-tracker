@@ -1,9 +1,47 @@
 from sqlalchemy.orm import Session
 from collections import defaultdict
 
-from app.models import StopTimeUpdate, RealtimeTrip
+from app.models import StopTimeUpdate, RealtimeTrip, StaticRoute, StaticStopTime, StaticTrip, StaticStop
 from app.utils import utils
 
+
+def get_routes(db: Session):
+    return db.query(StaticRoute).all()
+
+def get_route(db: Session, route_id: str):
+    route = (
+        db.query(StaticRoute)
+        .filter(StaticRoute.route_id == route_id)
+        .first()
+    )
+
+    return route
+
+def get_route_stops(db: Session, route_id: str):
+    # verify route exists
+    route = (
+        db.query(StaticRoute)
+        .filter(StaticRoute.route_id == route_id)
+        .first()
+    )
+
+    if not route:
+        return None
+
+    # get all stops served by any trip on this route
+    stops = (
+        db.query(StaticStop)
+        .join(StaticStopTime, StaticStopTime.stop_id == StaticStop.stop_id)
+        .join(StaticTrip, StaticTrip.trip_id == StaticStopTime.trip_id)
+        .filter(StaticTrip.route_id == route_id)
+        .distinct()
+        .all()
+    )
+
+    return {
+        "route_id": route_id,
+        "stops": stops
+    }
 
 def get_active_trips(db: Session, route_id: str):
     updates = (
@@ -21,8 +59,7 @@ def get_active_trips(db: Session, route_id: str):
     results = []
 
     for trip_id, stops in grouped.items():
-        terminal_stop = utils.get_last_stop_for_trip(db, trip_id)
-        terminal_name = terminal_stop.stop_name if terminal_stop else "Unknown"
+        trip = db.query(StaticTrip).filter(StaticTrip.trip_id == trip_id).first()
 
         stop_data = []
         for stu in stops:
@@ -37,7 +74,8 @@ def get_active_trips(db: Session, route_id: str):
 
         results.append({
             "trip_id": trip_id,
-            "to": terminal_name,
+            "to": trip.trip_headsign if trip else "Unknown",
+            "direction_id": trip.direction_id if trip else None,
             "stops": stop_data,
         })
 
