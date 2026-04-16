@@ -70,6 +70,7 @@ class StaticStopTime(Base):
 
     trip_id = Column(String, ForeignKey("StaticTrips.trip_id"), primary_key=True)
     stop_id = Column(String, ForeignKey("StaticStops.stop_id"), primary_key=True)
+
     arrival_time = Column(String, nullable=True)
     departure_time = Column(String, nullable=True)
     stop_sequence = Column(Integer, nullable=False)

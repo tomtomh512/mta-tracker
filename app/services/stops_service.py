@@ -6,14 +6,35 @@ from app.utils import utils
 
 
 def get_parent_stops(db: Session):
-    return (
+    stops = (
         db.query(StaticStop)
         .filter(StaticStop.location_type == 1)
         .all()
     )
 
+    result = []
+
+    for stop in stops:
+        result.append({
+            "stop_name": stop.stop_name,
+            "stop_lon": stop.stop_lon,
+            "stop_id": stop.stop_id,
+            "stop_lat": stop.stop_lat,
+            "location_type": stop.location_type,
+        })
+
+    return result
+
 def get_parent_stop(db: Session, stop_id: str):
-    return utils.get_parent_stop(db, stop_id)
+    stop = utils.get_parent_stop(db, stop_id)
+
+    return {
+        "stop_name": stop.stop_name,
+        "stop_lon": stop.stop_lon,
+        "stop_id": stop.stop_id,
+        "stop_lat": stop.stop_lat,
+        "location_type": stop.location_type,
+    }
 
 def get_routes_for_stop(db: Session, stop_id: str):
     parent_stop_id, stop_ids, all_stop_ids = utils.get_all_stop_ids(db, stop_id)
@@ -27,7 +48,21 @@ def get_routes_for_stop(db: Session, stop_id: str):
         .all()
     )
 
-    return routes
+    result = []
+
+    for route in routes:
+        result.append({
+            "route_long_name": route.route_long_name,
+            "route_type": route.route_type,
+            "route_sort_order": route.route_sort_order,
+            "route_id": route.route_id,
+            "agency_id": route.agency_id,
+            "route_short_name": route.route_short_name,
+            "route_desc": route.route_desc,
+            "route_url": route.route_url,
+        })
+
+    return result
 
 def get_wait_times(
     db: Session,

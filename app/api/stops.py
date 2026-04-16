@@ -3,23 +3,24 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.services import stops_service
+import app.schemas as schemas
 
 router = APIRouter(prefix="/stops", tags=["stops"])
 
 
-@router.get("/")
+@router.get("/", response_model=list[schemas.Stop])
 def get_stops(db: Session = Depends(get_db)):
     return stops_service.get_parent_stops(db)
 
-@router.get("/{stop_id}")
+@router.get("/{stop_id}", response_model=schemas.Stop)
 def get_stop(stop_id: str, db: Session = Depends(get_db)):
     return stops_service.get_parent_stop(db, stop_id)
 
-@router.get("/{stop_id}/routes")
+@router.get("/{stop_id}/routes", response_model=list[schemas.Route])
 def get_routes_for_stop(stop_id: str, db: Session = Depends(get_db)):
     return stops_service.get_routes_for_stop(db, stop_id)
 
-@router.get("/{stop_id}/wait")
+@router.get("/{stop_id}/wait", response_model=schemas.WaitTimes)
 def get_wait_times(
         stop_id: str,
         route_id: str | None = None,

@@ -1,7 +1,8 @@
 from sqlalchemy.orm import Session
-from datetime import datetime, timezone
+from datetime import datetime
 from zoneinfo import ZoneInfo
 from typing import List
+from fastapi import HTTPException
 
 NY_TZ = ZoneInfo("America/New_York")
 
@@ -23,12 +24,20 @@ def get_parent_stop(db: Session, stop_id: str) -> StaticStop:
         .first()
     )
 
-    if stop and stop.parent_station:
-        return (
+    if not stop:
+        raise HTTPException(status_code=404, detail=f"Stop '{stop_id}' not found")
+
+    if stop.parent_station:
+        parent = (
             db.query(StaticStop)
             .filter(StaticStop.stop_id == stop.parent_station)
             .first()
         )
+
+        if not parent:
+            raise HTTPException(status_code=404, detail=f"Parent stop '{stop.parent_station}' not found")
+
+        return parent
 
     return stop
 
@@ -86,8 +95,8 @@ def get_last_stop_for_trip(db: Session, trip_id: str) -> List[StaticStop]:
     return terminal_update.stop if terminal_update else None
 
 def get_all_stop_ids(db: Session, stop_id: str):
-    stop = get_parent_stop(db, stop_id)
-    parent_stop_id = stop.stop_id
+    parent_stop = get_parent_stop(db, stop_id)
+    parent_stop_id = parent_stop.stop_id
 
     children = get_children_stops(db, parent_stop_id)
     child_ids = [s.stop_id for s in children]

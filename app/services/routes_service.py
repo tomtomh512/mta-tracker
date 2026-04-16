@@ -1,24 +1,30 @@
 from sqlalchemy.orm import Session
 from collections import defaultdict
+from fastapi import HTTPException
 
 from app.models import StopTimeUpdate, RealtimeTrip, StaticRoute, StaticStopTime, StaticTrip, StaticStop
 from app.utils import utils
 
-
 def get_routes(db: Session):
-    return db.query(StaticRoute).all()
+    routes = db.query(StaticRoute).all()
 
-def get_route(db: Session, route_id: str):
-    route = (
-        db.query(StaticRoute)
-        .filter(StaticRoute.route_id == route_id)
-        .first()
-    )
+    result = []
 
-    return route
+    for route in routes:
+        result.append({
+            "route_long_name": route.route_long_name,
+            "route_type": route.route_type,
+            "route_sort_order": route.route_sort_order,
+            "route_id": route.route_id,
+            "agency_id": route.agency_id,
+            "route_short_name": route.route_short_name,
+            "route_desc": route.route_desc,
+            "route_url": route.route_url,
+        })
 
-def get_route_stops(db: Session, route_id: str):
-    # verify route exists
+    return result
+
+def get_route_info(db: Session, route_id: str):
     route = (
         db.query(StaticRoute)
         .filter(StaticRoute.route_id == route_id)
@@ -26,7 +32,26 @@ def get_route_stops(db: Session, route_id: str):
     )
 
     if not route:
-        return None
+        raise HTTPException(status_code=404, detail=f"Route '{route_id}' not found")
+
+    return route
+
+def get_route(db: Session, route_id: str):
+    route = get_route_info(db, route_id)
+
+    return {
+        "route_long_name": route.route_long_name,
+        "route_type": route.route_type,
+        "route_sort_order": route.route_sort_order,
+        "route_id": route.route_id,
+        "agency_id": route.agency_id,
+        "route_short_name": route.route_short_name,
+        "route_desc": route.route_desc,
+        "route_url": route.route_url,
+    }
+
+def get_route_stops(db: Session, route_id: str):
+    get_route_info(db, route_id)
 
     # get all stops served by any trip on this route
     stops = (
