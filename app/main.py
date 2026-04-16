@@ -35,8 +35,15 @@ def get_trips(route_id: str, db: Session = Depends(get_db)):
     return trip_service.get_active_trips_by_route(db, route_id)
 
 @app.get("/stop/{stop_id}")
-def get_wait_times(stop_id: str, db: Session = Depends(get_db)):
-    return stop_service.get_wait_times(db, stop_id)
+def get_wait_times(
+        stop_id: str,
+        route_id: str | None = None,
+        db: Session = Depends(get_db)
+):
+    if route_id:
+        return stop_service.get_wait_times(db, stop_id, 5, route_id)
+
+    return stop_service.get_wait_times(db, stop_id, 5)
 
 @app.get("/map/{route_id}")
 def get_wait_times(route_id: str, db: Session = Depends(get_db)):
