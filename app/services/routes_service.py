@@ -5,7 +5,7 @@ from app.models import StopTimeUpdate, RealtimeTrip
 from app.utils import utils
 
 
-def get_active_trips_by_route(db: Session, route_id: str):
+def get_active_trips(db: Session, route_id: str):
     updates = (
         db.query(StopTimeUpdate)
         .join(RealtimeTrip)

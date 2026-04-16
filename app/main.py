@@ -5,7 +5,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from app.scheduler import scheduled_jobs
 from app.services import static_service, realtime_service
 from app.db import create_table, create_database_if_not_exists, SessionLocal
-from app.api import stops, trips, map
+from app.api import stops, routes, map
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -31,5 +31,5 @@ async def lifespan(_: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 app.include_router(stops.router)
-app.include_router(trips.router)
+app.include_router(routes.router)
 app.include_router(map.router)
