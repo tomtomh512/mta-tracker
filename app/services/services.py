@@ -73,44 +73,73 @@ def test_realtime(db: Session, route_id: str):
                 f"Departure: {format_time(stu.departure_time)}"
             )
 
-def get_next_trains_at_station(db: Session, stop_id: str):
+# Given a stop id, return a staticstop of the stop's parent
+# If the stop is a parent, return its own staticstop
+def get_parent_stop(db: Session, stop_id: str):
     stop = (
         db.query(StaticStop)
         .filter(StaticStop.stop_id == stop_id)
         .first()
     )
 
-    parent_stop_id = stop.parent_station
-    if parent_stop_id:
-        stop_id = parent_stop_id
+    if stop and stop.parent_station:
+        return (
+            db.query(StaticStop)
+            .filter(StaticStop.stop_id == stop.parent_station)
+            .first()
+        )
 
-    # find stops where parent station is the stop id
-    children = (
-        db.query(StaticStop.stop_id)
+    return stop
+
+# Given a stop id, return a list of staticstops of the stop's children
+def get_children_stops(db: Session, stop_id: str):
+    return (
+        db.query(StaticStop)
         .filter(StaticStop.parent_station == stop_id)
         .all()
     )
-    child_ids = [row.stop_id for row in children]
-    stop_ids = list(set([stop_id] + child_ids))
 
-    # find transfer stops, excluding self-transfers
-    transfer_stop_ids = (
-        db.query(StaticTransfer.to_stop_id)
-        .filter(StaticTransfer.from_stop_id.in_(stop_ids))
-        .filter(StaticTransfer.from_stop_id != StaticTransfer.to_stop_id) #excluding self-transfers
+# Given a stop id, return a list of staticstops of the stop's transfers
+def get_transfers(db: Session, stop_id: str, includeChildren: bool):
+    transfers = (
+        db.query(StaticTransfer)
+        .filter(StaticTransfer.from_stop_id == stop_id)
+        .filter(StaticTransfer.from_stop_id != StaticTransfer.to_stop_id)
         .all()
     )
-    transfer_stop_ids = [row.to_stop_id for row in transfer_stop_ids]
 
-    # expand transfer parent stations to their directional children
-    if transfer_stop_ids:
-        transfer_children = (
-            db.query(StaticStop.stop_id)
-            .filter(StaticStop.parent_station.in_(transfer_stop_ids))
-            .all()
-        )
-        transfer_child_ids = [row.stop_id for row in transfer_children]
-        transfer_stop_ids = list(set(transfer_stop_ids + transfer_child_ids))
+    transfer_stop_ids = {t.to_stop_id for t in transfers}
+
+    result = []
+
+    transfer_stops = (
+        db.query(StaticStop)
+        .filter(StaticStop.stop_id.in_(transfer_stop_ids))
+        .all()
+    )
+    result.extend(transfer_stops)
+
+    if includeChildren:
+        for stop_id in transfer_stop_ids:
+            result.extend(get_children_stops(db, stop_id))
+
+    return result
+
+def get_next_trains_at_station(db: Session, stop_id: str):
+    stop = get_parent_stop(db, stop_id)
+    stop_id = stop.stop_id
+
+    children = get_children_stops(db, stop_id)
+    child_ids = [s.stop_id for s in children]
+
+    stop_ids = list(set([stop_id] + child_ids))
+
+    transfer_stop_ids = []
+
+    for current_stop_id in stop_ids:
+        current_transfers = get_transfers(db, current_stop_id, True)
+        current_transfer_stop_ids = [s.stop_id for s in current_transfers]
+        transfer_stop_ids.extend(current_transfer_stop_ids)
 
     all_stop_ids = list(set(stop_ids + transfer_stop_ids))
 
