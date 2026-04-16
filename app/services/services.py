@@ -74,6 +74,15 @@ def test_realtime(db: Session, route_id: str):
             )
 
 def get_next_trains_at_station(db: Session, stop_id: str):
+    stop = (
+        db.query(StaticStop)
+        .filter(StaticStop.stop_id == stop_id)
+        .first()
+    )
+
+    parent_stop_id = stop.parent_station
+    if parent_stop_id:
+        stop_id = parent_stop_id
 
     # find stops where parent station is the stop id
     children = (
