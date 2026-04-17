@@ -1,6 +1,5 @@
 from sqlalchemy.orm import Session
 from collections import defaultdict
-from fastapi import HTTPException
 
 from app.models import StopTimeUpdate, RealtimeTrip, StaticRoute, StaticStopTime, StaticTrip, StaticStop
 from app.utils import utils

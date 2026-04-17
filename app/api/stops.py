@@ -9,6 +9,18 @@ import app.schemas as schemas
 router = APIRouter(prefix="/stops", tags=["stops"])
 
 
+@router.get("/nearby", response_model=list[schemas.NearbyStop])
+@limiter.limit("30/minute")
+def get_nearby_stops(
+    request: Request,
+    lat: float,
+    lon: float,
+    radius_m: int,
+    limit: int,
+    db: Session = Depends(get_db),
+):
+    return stops_service.get_nearby_stops(db, lat, lon, radius_m, limit)
+
 @router.get("/", response_model=list[schemas.Stop])
 @limiter.limit("10/minute")
 def get_stops(request: Request, db: Session = Depends(get_db)):
@@ -36,13 +48,3 @@ def get_wait_times(
         return stops_service.get_wait_times(db, stop_id, 5, route_id)
 
     return stops_service.get_wait_times(db, stop_id, 5)
-
-@router.get("/nearby")
-def get_nearby_stops(
-    lat: float = Query(..., description="User latitude"),
-    lon: float = Query(..., description="User longitude"),
-    radius_m: int = Query(1000, description="Search radius in meters (default 1km)"),
-    limit: int = Query(10, description="Max number of stops to return"),
-    db: Session = Depends(get_db),
-):
-    return stops_service.get_nearby_stops(db, lat, lon, radius_m, limit)

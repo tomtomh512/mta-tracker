@@ -8,7 +8,7 @@ from app.limiter import limiter
 from app.scheduler import scheduled_jobs
 from app.services import static_service, realtime_service
 from app.db import create_table, create_database_if_not_exists, SessionLocal
-from app.api import stops, routes, map
+from app.api import stops, routes
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -35,4 +35,3 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.include_router(stops.router)
 app.include_router(routes.router)
-app.include_router(map.router)

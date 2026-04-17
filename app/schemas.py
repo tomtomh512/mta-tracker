@@ -44,6 +44,8 @@ class WaitTimes(BaseModel):
     route_id: str | None
     results: list[WaitTime]
 
+class NearbyStop(StopBase):
+    distance_m: int
 
 class RouteStops(BaseModel):
     route_id: str

@@ -1,10 +1,12 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import func, Float
 from datetime import datetime, timezone
 
 from app.models import StopTimeUpdate, RealtimeTrip, StaticRoute, StaticTrip, StaticStopTime, StaticStop
 from app.utils import utils
 from app.cache import get_cached, set_cached
 
+import math
 
 def get_parent_stops(db: Session):
     cache_key = "parent_stops"
@@ -150,5 +152,67 @@ def get_wait_times(
     set_cached(cache_key, result, ttl=20)
     return result
 
-def get_nearby_stops(db: Session, lat: float, lng: float, radius: int, limit: int):
-    return 0
+
+def get_nearby_stops(
+        db: Session,
+        lat: float,
+        lng: float,
+        radius: int,
+        limit: int
+):
+
+    # Round to 2 decimal places (~1.1km grid) so nearby coordinates share cache hits
+    cache_key = f"nearby_stops:{round(lat, 2)}:{round(lng, 2)}:{radius}:{limit}"
+    cached = get_cached(cache_key)
+    if cached:
+        return cached
+
+    # Bounding box pre-filter to avoid a full table scan.
+    # 1 degree of latitude ~ 111,320m; longitude shrinks by cos(lat).
+    lat_delta = radius / 111_320.0
+    lng_delta = radius / (111_320.0 * math.cos(math.radians(lat)))
+
+    # Haversine via SQL so sorting and filtering happen in the DB.
+    # Using the standard spherical law-of-cosines approximation expressed
+    R = 6_371_000  # Earth radius in metres
+
+    lat_r = math.radians(lat)
+    lng_r = math.radians(lng)
+
+    # SQLAlchemy expression for haversine distance in metres
+    stop_lat_r = func.radians(StaticStop.stop_lat.cast(Float))
+    stop_lng_r = func.radians(StaticStop.stop_lon.cast(Float))
+
+    dlat = stop_lat_r - lat_r
+    dlng = stop_lng_r - lng_r
+
+    a = func.pow(func.sin(dlat / 2), 2) + math.cos(lat_r) * func.cos(stop_lat_r) * func.pow(func.sin(dlng / 2), 2)
+    distance_m = 2 * R * func.asin(func.sqrt(a))
+
+    stops = (
+        db.query(StaticStop, distance_m.label("distance_m"))
+        .filter(
+            StaticStop.location_type == 1,  # parent stations only
+            StaticStop.stop_lat.between(lat - lat_delta, lat + lat_delta),
+            StaticStop.stop_lon.between(lng - lng_delta, lng + lng_delta),
+            distance_m <= radius,
+        )
+        .order_by("distance_m")
+        .limit(limit)
+        .all()
+    )
+
+    result = [
+        {
+            "stop_id": stop.stop_id,
+            "stop_name": stop.stop_name,
+            "stop_lat": stop.stop_lat,
+            "stop_lon": stop.stop_lon,
+            "location_type": stop.location_type,
+            "distance_m": round(distance_m),
+        }
+        for stop, distance_m in stops
+    ]
+
+    set_cached(cache_key, result, ttl=86400)
+    return result
