@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.background import BackgroundScheduler
 from slowapi import _rate_limit_exceeded_handler
@@ -24,7 +25,7 @@ async def lifespan(_: FastAPI):
 
     scheduler = BackgroundScheduler()
     scheduler.add_job(scheduled_jobs.scheduled_static_gtfs_update, "cron", hour=0, minute=0)
-    scheduler.add_job(scheduled_jobs.scheduled_trip_update, "interval", seconds=30)
+    # scheduler.add_job(scheduled_jobs.scheduled_trip_update, "interval", seconds=30)
     scheduler.add_job(scheduled_jobs.scheduled_trips_cleanup, "interval", minutes=30)
     scheduler.start()
 
@@ -34,6 +35,14 @@ async def lifespan(_: FastAPI):
 app = FastAPI(lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],        # change later
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(stops.router)
 app.include_router(routes.router)

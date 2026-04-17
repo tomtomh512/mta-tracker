@@ -28,3 +28,8 @@ def get_stops(request: Request, route_id: str, db: Session = Depends(get_db)):
 @limiter.limit("60/minute")
 def get_trips(request: Request, route_id: str, db: Session = Depends(get_db)):
     return routes_service.get_active_trips(db, route_id)
+
+@router.get("/{route_id}/map", response_model=schemas.RouteMapData)
+@limiter.limit("30/minute")
+def get_route_map_data(request: Request, route_id: str, db: Session = Depends(get_db)):
+    return routes_service.get_route_map_data(db, route_id)

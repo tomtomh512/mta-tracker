@@ -73,3 +73,21 @@ class Trip(BaseModel):
 class ActiveTrips(BaseModel):
     route_id: str
     trips: list[Trip]
+
+class ShapePoint(BaseModel):
+    lat: float
+    lon: float
+
+class RouteStop(BaseModel):
+    stop_id: str
+    stop_name: str
+    lat: float
+    lon: float
+
+class RouteMapData(BaseModel):
+    route_id: str
+    route_short_name: str
+    route_color: str | None
+    route_text_color: str | None
+    shapes: list[list[ShapePoint]]  # list of polylines, one per shape_id
+    stops: list[RouteStop]

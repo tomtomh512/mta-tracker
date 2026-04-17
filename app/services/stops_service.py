@@ -59,7 +59,6 @@ def get_routes_for_stop(db: Session, stop_id: str):
     if cached:
         return cached
 
-
     parent_stop_id, stop_ids, all_stop_ids = utils.get_all_stop_ids(db, stop_id)
 
     routes = (
