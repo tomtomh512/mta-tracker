@@ -6,7 +6,7 @@ from fastapi import HTTPException
 
 NY_TZ = ZoneInfo("America/New_York")
 
-from app.models import StaticStop, StaticTransfer, StopTimeUpdate
+from app.models import StaticStop, StaticTransfer, StopTimeUpdate, StaticRoute
 
 
 def format_time(ts):
@@ -113,3 +113,15 @@ def get_all_stop_ids(db: Session, stop_id: str):
     all_stop_ids = list(set(stop_ids + transfer_stop_ids))
 
     return parent_stop_id, stop_ids, all_stop_ids
+
+def get_route_info(db: Session, route_id: str):
+    route = (
+        db.query(StaticRoute)
+        .filter(StaticRoute.route_id == route_id)
+        .first()
+    )
+
+    if not route:
+        raise HTTPException(status_code=404, detail=f"Route '{route_id}' not found")
+
+    return route

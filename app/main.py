@@ -15,7 +15,7 @@ async def lifespan(_: FastAPI):
     db = SessionLocal()
     try:
         static_service.populate_static_gtfs(db)
-        # realtime_service.populate_trips(db)
+        realtime_service.populate_trips(db)
     finally:
         db.close()
 

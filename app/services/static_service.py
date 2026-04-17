@@ -13,6 +13,7 @@ from app.models import (
 )
 from app.services import realtime_service
 from app.utils import static_utils
+from app.cache import delete_pattern
 
 STATIC_GTFS_URL = "https://rrgtfsfeeds.s3.amazonaws.com/gtfs_subway.zip"
 CHUNK_SIZE = 5000
@@ -85,6 +86,20 @@ def update_static_gtfs(db: Session):
     realtime_service.populate_trips(db)
 
     db.commit()
+
+    for pattern in [
+        "parent_stops",
+        "parent_stop:*"
+        "routes_for_stop:*",
+        "wait_times:*",
+
+        "routes",
+        "route:*",
+        "route_stops:*",
+        "active_trips:*"
+    ]:
+        delete_pattern(pattern)
+
     print("Static GTFS update finished")
 
 def populate_routes(db: Session, z: zipfile.ZipFile):

@@ -9,3 +9,4 @@ ipython
 alembic
 python-dotenv
 apscheduler
+redis

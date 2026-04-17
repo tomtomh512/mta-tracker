@@ -4,8 +4,14 @@ from fastapi import HTTPException
 
 from app.models import StopTimeUpdate, RealtimeTrip, StaticRoute, StaticStopTime, StaticTrip, StaticStop
 from app.utils import utils
+from app.cache import get_cached, set_cached
 
 def get_routes(db: Session):
+    cache_key = "routes"
+    cached = get_cached(cache_key)
+    if cached:
+        return cached
+
     routes = db.query(StaticRoute).all()
 
     result = []
@@ -22,24 +28,18 @@ def get_routes(db: Session):
             "route_url": route.route_url,
         })
 
+    set_cached(cache_key, result, ttl=86400)
     return result
 
-def get_route_info(db: Session, route_id: str):
-    route = (
-        db.query(StaticRoute)
-        .filter(StaticRoute.route_id == route_id)
-        .first()
-    )
-
-    if not route:
-        raise HTTPException(status_code=404, detail=f"Route '{route_id}' not found")
-
-    return route
-
 def get_route(db: Session, route_id: str):
-    route = get_route_info(db, route_id)
+    cache_key = f"route:{route_id}"
+    cached = get_cached(cache_key)
+    if cached:
+        return cached
 
-    return {
+    route = utils.get_route_info(db, route_id)
+
+    result = {
         "route_long_name": route.route_long_name,
         "route_type": route.route_type,
         "route_sort_order": route.route_sort_order,
@@ -50,8 +50,16 @@ def get_route(db: Session, route_id: str):
         "route_url": route.route_url,
     }
 
+    set_cached(cache_key, result, ttl=86400)
+    return result
+
 def get_route_stops(db: Session, route_id: str):
-    get_route_info(db, route_id)
+    cache_key = f"route_stops:{route_id}"
+    cached = get_cached(cache_key)
+    if cached:
+        return cached
+
+    utils.get_route_info(db, route_id)
 
     # get all stops served by any trip on this route
     stops = (
@@ -63,12 +71,29 @@ def get_route_stops(db: Session, route_id: str):
         .all()
     )
 
-    return {
+    result = {
         "route_id": route_id,
-        "stops": stops
+        "stops": [
+            {
+                "stop_id": s.stop_id,
+                "stop_name": s.stop_name,
+                "stop_lat": s.stop_lat,
+                "stop_lon": s.stop_lon,
+                "location_type": s.location_type,
+            }
+            for s in stops
+        ]
     }
 
+    set_cached(cache_key, result, ttl=86400)
+    return result
+
 def get_active_trips(db: Session, route_id: str):
+    cache_key = f"active_trips:{route_id}"
+    cached = get_cached(cache_key)
+    if cached:
+        return cached
+
     updates = (
         db.query(StopTimeUpdate)
         .join(RealtimeTrip)
@@ -104,7 +129,10 @@ def get_active_trips(db: Session, route_id: str):
             "stops": stop_data,
         })
 
-    return {
+    result = {
         "route_id": route_id,
         "trips": results,
     }
+
+    set_cached(cache_key, result, ttl=15)
+    return result

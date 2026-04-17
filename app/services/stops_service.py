@@ -3,9 +3,15 @@ from datetime import datetime, timezone
 
 from app.models import StopTimeUpdate, RealtimeTrip, StaticRoute, StaticTrip, StaticStopTime, StaticStop
 from app.utils import utils
+from app.cache import get_cached, set_cached
 
 
 def get_parent_stops(db: Session):
+    cache_key = "parent_stops"
+    cached = get_cached(cache_key)
+    if cached:
+        return cached
+
     stops = (
         db.query(StaticStop)
         .filter(StaticStop.location_type == 1)
@@ -23,12 +29,18 @@ def get_parent_stops(db: Session):
             "location_type": stop.location_type,
         })
 
+    set_cached(cache_key, result, ttl=86400)
     return result
 
 def get_parent_stop(db: Session, stop_id: str):
+    cache_key = f"parent_stop:{stop_id}"
+    cached = get_cached(cache_key)
+    if cached:
+        return cached
+
     stop = utils.get_parent_stop(db, stop_id)
 
-    return {
+    result = {
         "stop_name": stop.stop_name,
         "stop_lon": stop.stop_lon,
         "stop_id": stop.stop_id,
@@ -36,7 +48,16 @@ def get_parent_stop(db: Session, stop_id: str):
         "location_type": stop.location_type,
     }
 
+    set_cached(cache_key, result, ttl=86400)
+    return result
+
 def get_routes_for_stop(db: Session, stop_id: str):
+    cache_key = f"routes_for_stop:{stop_id}"
+    cached = get_cached(cache_key)
+    if cached:
+        return cached
+
+
     parent_stop_id, stop_ids, all_stop_ids = utils.get_all_stop_ids(db, stop_id)
 
     routes = (
@@ -62,6 +83,7 @@ def get_routes_for_stop(db: Session, stop_id: str):
             "route_url": route.route_url,
         })
 
+    set_cached(cache_key, result, ttl=86400)  # 24h
     return result
 
 def get_wait_times(
@@ -70,6 +92,11 @@ def get_wait_times(
     num: int = 5,
     route_id: str | None = None,
 ):
+    cache_key = f"wait_times:{stop_id}:{route_id}"
+    cached = get_cached(cache_key)
+    if cached:
+        return cached
+
     parent_stop_id, stop_ids, all_stop_ids = utils.get_all_stop_ids(db, stop_id)
 
     query = (
@@ -114,11 +141,14 @@ def get_wait_times(
             "is_transfer": is_transfer,
         })
 
-    return {
+    result = {
         "stop_id": parent_stop_id,
         "route_id": route_id,
         "results": results,
     }
+
+    set_cached(cache_key, result, ttl=20)
+    return result
 
 def get_nearby_stops(db: Session, lat: float, lng: float, radius: int, limit: int):
     return 0
