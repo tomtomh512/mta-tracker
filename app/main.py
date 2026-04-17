@@ -24,6 +24,8 @@ async def lifespan(_: FastAPI):
 
     scheduler = BackgroundScheduler()
     scheduler.add_job(scheduled_jobs.scheduled_static_gtfs_update, "cron", hour=0, minute=0)
+    scheduler.add_job(scheduled_jobs.scheduled_trip_update, "interval", seconds=30)
+    scheduler.add_job(scheduled_jobs.scheduled_trips_cleanup, "interval", minutes=30)
     scheduler.start()
 
     yield
