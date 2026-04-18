@@ -6,7 +6,7 @@ A REST API that serves real-time and static NYC subway data by consuming MTA GTF
 
 - **FastAPI** — web framework
 - **PostgreSQL** — persistent storage for static and realtime GTFS data
-- **Docker / Docker Compose** — containerized deployment
+- **Docker** — containerized deployment
 
 ## Running Locally
 
