@@ -75,9 +75,10 @@ The API will be available at `http://localhost:8000`. PostgreSQL is exposed on p
 
 ### Routes
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/routes/` | List all routes |
-| `GET` | `/routes/{route_id}` | Get a single route |
-| `GET` | `/routes/{route_id}/stops` | List all stops served by a route |
+| Method | Path | Description                            |
+|--------|------|----------------------------------------|
+| `GET` | `/routes/` | List all routes                        |
+| `GET` | `/routes/{route_id}` | Get a single route                     |
+| `GET` | `/routes/{route_id}/stops` | List all stops served by a route       |
 | `GET` | `/routes/{route_id}/trips` | List active realtime trips for a route |
+| `GET` | `/{route_id}/map` | Get map data to display a route        |

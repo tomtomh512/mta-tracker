@@ -159,7 +159,6 @@ def get_nearby_stops(
         radius: int,
         limit: int
 ):
-
     # Round to 2 decimal places (~1.1km grid) so nearby coordinates share cache hits
     cache_key = f"nearby_stops:{round(lat, 2)}:{round(lng, 2)}:{radius}:{limit}"
     cached = get_cached(cache_key)
